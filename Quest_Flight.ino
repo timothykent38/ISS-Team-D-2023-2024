@@ -19,6 +19,7 @@
 //
 #define eventTime0  one_sec*30                  //this event every 3 min
 #define eventTime1  one_min*60                  //this event every 60 min
+#define eventReadData one_min      // this event reads data (current and voltage) and prints it to the logit file (hopefully)
 ///////////////////////////////////////////////////////////////////////////
 /**
    @brief Flying function is used to capture all logic of an experiment during flight.
@@ -37,6 +38,9 @@ void Flying() {
   uint32_t one_secTimer = millis();             //set happens every second
   uint32_t sec60Timer = millis();               //set minute timer
 
+  //add timer for collectdata event
+  uint32_t eventDataTimer = millis();    // set data collection timer
+
   //*****************************************************************
   //   Here to set up flight conditions i/o pins, atod, and other special condition
   //   of your program
@@ -51,7 +55,19 @@ void Flying() {
   int value = 0;
   pinMode(analogInput, INPUT);
   Serial.print("DC VOLTMETER");
-  
+  int analogReadVoltage = A2;
+  pinMode(analogReadVoltage, INPUT);
+  int analogReadCurrent = A3;
+  pinMode(analogReadCurrent, INPUT);
+  int analogReadHydrogen = A4;
+  pinMode(analogReadHydrogen, INPUT);
+  int digitalPowerOn = D1;
+  pinMode(digitalPowerOn, OUTPUT);
+  int digitalPumpOn = D2;
+  pinMode(digitalPumpOn, OUTPUT);
+  int digitalMotorOn = D3;
+  pinMode(digitalMotorOn, OUTPUT);
+  bool readHydrogen;  // do we read the hydrogen
   //******************************************************************
 
   //------------ flying -----------------------
@@ -60,6 +76,27 @@ void Flying() {
   Serial.println("Terminal must be reset after abort");     //terminal reset requirement upon soft reset
 
   missionMillis = millis();     //Set mission clock millis, you just entered flight conditions
+  // ***************** HERE IS WHERE THE EXPERIMENT CODE STARTS *************************************************
+  // wait 24 hours (this should be done automatically)
+  // turn on voltage 
+  digitalPowerOn = HIGH;
+  //***** reading the voltage and current happens each minute throughout the entire experiment
+//  read oxygen(or hydrogen) and print that to the logit file
+  printHydrogen = true;  // there is probably a better way to control when we do or do not read data from the hydrogen sensor, the current way probably does not work at all 
+//  turn on air pump
+  digitalPunpOn = HIGH;
+//  read voltage and hydrogen (this happens throughout the experiment every minute)
+//  turn off votage and air pump
+  digitalPowerOn = LOW;
+  digitalPunpOn = LOW;
+//  reverse polaroty (i have no idea how to do this)
+//  turn on votage measure current and voltage (measuring continues to happen throughout experiment
+  digitalPowerOn = HIGH;
+//  turrn off voltage
+  digitalPowerOn = LOW;
+//  turn on motor
+//  turn off motor
+//  if 30 days have passed end else go back to turn on power (we may want to put all this code inside a 1 day event so it runs every day and have a variable that counts the number of days that have passed)
   //
   //
   /////////////////////////////////////////////////////
@@ -86,7 +123,26 @@ void Flying() {
       }                               //end check
     }                                 //end abort check
     //-------------------------------------------------------------------
-    //  this test if eventTime0 time has come
+   //********* event for printing the data from voltage and current sensor
+        if ((millis() - eventDataTimer) > eventReadData) {
+          if(readHydrogen){
+            int hydrogen = analogRead(analogReadHydrogen);  // reads the hydrogen from the sensor
+            // print hydrogen to the logit file
+          }
+          eventDataTimer = millis();                    //yes is time now reset eventDatatTimer
+          Serial.println();                          //
+          Serial.println(millis());  
+   
+          int voltage = analogRead(analogReadVoltage);        // read the voltage sensor value
+          // print the voltage to the logit file
+          
+      
+          int current = analogRead(analogReadCurrent);      // read the current sensor value 
+          // print the current to the logit file
+          
+
+        }
+         //  this test if eventTime0 time has come
     //  See above for eventTime0 settings between this event
     //
     if ((millis() - event0timer) > eventTime0) {
@@ -114,6 +170,36 @@ void Flying() {
       cmd_takeSphoto();                          //Take photo and send it
       delay(100);
 
+      void logit(uint8_t  x) {
+        Logfile = SD.open("syslog.txt", FILE_WRITE);  //open log file ?
+        if (Logfile) {                                //with logfile is open
+          Logfile.write(x);                         //write the value to file
+        }
+        else {                                        //if not open say error
+          Serial.println("\r\nlogit error");          //Terminal output here
+        }
+        Logfile.close();                              //close the log file
+      }
+
+
+
+      void textFile_string(String data) {                           //store string
+        Logfile = SD.open("data.txt", FILE_WRITE);  //open syslog file
+        if (Logfile) {                                //can open the file
+          Logfile.println();                          //add a carrage return/line feed
+          delayMicroseconds(100);                     //wait 100 microsec
+          for (uint8_t x = 0x20; x < 128; x++) {      //print a string to log file
+            Logfile.write(x);                         //write one charator at a time
+          }                                           //close string
+          Logfile.write(data);
+        }                                             //close the open log file
+        else {                                        //or else
+          Serial.println("\r\nlogit error");          //error can not open log file
+        }                                            //close error else
+        Logfile.close();                             //close the log file
+      }
+
+      textFile_string("hello");
       // Call the freeMemory function and print the result
       // cmd_stackandheap();                          //enable to know stack and heap after photo time
       //
