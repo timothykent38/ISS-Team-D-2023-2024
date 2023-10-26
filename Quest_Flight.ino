@@ -61,11 +61,11 @@ void Flying() {
   pinMode(analogReadCurrent, INPUT);
   int analogReadHydrogen = A4;
   pinMode(analogReadHydrogen, INPUT);
-  int digitalPowerOn = D1;
+  int digitalPowerOn = 5;
   pinMode(digitalPowerOn, OUTPUT);
-  int digitalPumpOn = D2;
+  int digitalPumpOn = 6;
   pinMode(digitalPumpOn, OUTPUT);
-  int digitalMotorOn = D3;
+  int digitalMotorOn = 7;
   pinMode(digitalMotorOn, OUTPUT);
   bool readHydrogen;  // do we read the hydrogen
   //******************************************************************
@@ -79,21 +79,21 @@ void Flying() {
   // ***************** HERE IS WHERE THE EXPERIMENT CODE STARTS *************************************************
   // wait 24 hours (this should be done automatically)
   // turn on voltage 
-  digitalPowerOn = HIGH;
+  digitalWrite(digitalPowerOn, HIGH);
   //***** reading the voltage and current happens each minute throughout the entire experiment
 //  read oxygen(or hydrogen) and print that to the logit file
-  printHydrogen = true;  // there is probably a better way to control when we do or do not read data from the hydrogen sensor, the current way probably does not work at all 
+  readHydrogen = true;  // there is probably a better way to control when we do or do not read data from the hydrogen sensor, the current way probably does not work at all 
 //  turn on air pump
-  digitalPunpOn = HIGH;
+    digitalWrite(digitalPumpOn, HIGH);
 //  read voltage and hydrogen (this happens throughout the experiment every minute)
 //  turn off votage and air pump
-  digitalPowerOn = LOW;
-  digitalPunpOn = LOW;
+    digitalWrite(digitalPowerOn, LOW);
+    digitalWrite(digitalPumpOn, LOW);
 //  reverse polaroty (i have no idea how to do this)
 //  turn on votage measure current and voltage (measuring continues to happen throughout experiment
-  digitalPowerOn = HIGH;
+      digitalWrite(digitalPowerOn, HIGH);
 //  turrn off voltage
-  digitalPowerOn = LOW;
+    digitalWrite(digitalPowerOn, LOW);
 //  turn on motor
 //  turn off motor
 //  if 30 days have passed end else go back to turn on power (we may want to put all this code inside a 1 day event so it runs every day and have a variable that counts the number of days that have passed)
