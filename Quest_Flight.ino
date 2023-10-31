@@ -6,10 +6,18 @@
    @date 2023-07-15
 
 */
+    
+    #include "DHT.h"
 
 #include "Quest_Flight.h"
 #include "Quest_CLI.h"
-
+  #define ANALOG_IN_PIN_VOLTAGE A0
+    
+    #define DHTPIN 2     // Digital pin connected to the DHT sensor
+    // Feather HUZZAH ESP8266 note: use pins 3, 4, 5, 12, 13 or 14 --
+    //#define DHTTYPE DHT11   // DHT 11
+    #define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
+   DHT dht(DHTPIN, DHTTYPE);
 //////////////////////////////////////////////////////////////////////////
 //    this defines the timers used to control flight operations
 //////////////////////////////////////////////////////////////////////////
@@ -40,21 +48,30 @@ void Flying() {
 
   //add timer for collectdata event
   uint32_t eventDataTimer = millis();    // set data collection timer
-
+  dht.begin();
   //*****************************************************************
   //   Here to set up flight conditions i/o pins, atod, and other special condition
   //   of your program
   //
   // test mode change to carriage return and 115200 baud for ? for commands
   //
-  int analogInput = A1;
-  float vout = 0.0;
+  // set up for reading voltage
+ 
+  // Floats for ADC voltage & Input voltage
+  float adc_voltage = 0.0;
+  float in_voltage = 0.0;
+   float R1 = 30000.0;
+   float R2 = 7500.0; 
+// Float for Reference Voltage
+float ref_voltage = 5.0;
+// Integer for ADC value
+int adc_value = 0;
+
+  float vout = 0.0; // these 2 values seem to be for logit file??????????
   float vin = 0.0;
-  float R1 = 30000.0; //
-  float R2 = 7500.0; //
-  int value = 0;
-  pinMode(analogInput, INPUT);
-  Serial.print("DC VOLTMETER");
+
+
+  Serial.print("DC VOLTMETER"); 
   int analogReadVoltage = A2;
   pinMode(analogReadVoltage, INPUT);
   int analogReadCurrent = A3;
@@ -126,62 +143,19 @@ void Flying() {
        //********* event for printing the data from voltage and current 
     
     if ((millis() - eventDataTimer) > eventReadData) {
-              // ******* reading temp info 
-              // Example testing sketch for various DHT humidity/temperature sensors
-    // Written by ladyada, public domain
+              // ******* reading temp info
     
-    // REQUIRES the following Arduino libraries:
-    // - DHT Sensor Library: https://github.com/adafruit/DHT-sensor-library
-    // - Adafruit Unified Sensor Lib: https://github.com/adafruit/Adafruit_Sensor
-    
-    #include "DHT.h"
-    
-    #define DHTPIN 2     // Digital pin connected to the DHT sensor
-    // Feather HUZZAH ESP8266 note: use pins 3, 4, 5, 12, 13 or 14 --
-    // Pin 15 can work but DHT must be disconnected during program upload.
-    
-    // Uncomment whatever type you're using!
-    //#define DHTTYPE DHT11   // DHT 11
-    #define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
-    //#define DHTTYPE DHT21   // DHT 21 (AM2301)
-    
-    // Connect pin 1 (on the left) of the sensor to +5V
-    // NOTE: If using a board with 3.3V logic like an Arduino Due connect pin 1
-    // to 3.3V instead of 5V!
-    // Connect pin 2 of the sensor to whatever your DHTPIN is
-    // Connect pin 3 (on the right) of the sensor to GROUND (if your sensor has 3 pins)
-    // Connect pin 4 (on the right) of the sensor to GROUND and leave the pin 3 EMPTY (if your sensor has 4 pins)
-    // Connect a 10K resistor from pin 2 (data) to pin 1 (power) of the sensor
-    
-    // Initialize DHT sensor.
-    // Note that older versions of this library took an optional third parameter to
-    // tweak the timings for faster processors.  This parameter is no longer needed
-    // as the current DHT reading algorithm adjusts itself to work on faster procs.
-    DHT dht(DHTPIN, DHTTYPE);
-    
-  
-      // Wait a few seconds between measurements.
-      delay(2000);
-    
-      // Reading temperature or humidity takes about 250 milliseconds!
-      // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-      float h = dht.readHumidity();
-      // Read temperature as Celsius (the default)
       float t = dht.readTemperature();
-      // Read temperature as Fahrenheit (isFahrenheit = true)
       float f = dht.readTemperature(true);
-    
       // Check if any reads failed and exit early (to try again).
       if (isnan(h) || isnan(t) || isnan(f)) {
         Serial.println(F("Failed to read from DHT sensor!"));
         return;
       }
-    
       // Compute heat index in Fahrenheit (the default)
       float hif = dht.computeHeatIndex(f, h);
       // Compute heat index in Celsius (isFahreheit = false)
       float hic = dht.computeHeatIndex(t, h, false);
-    
       Serial.print(F("Humidity: "));
       Serial.print(h);
       Serial.print(F("%  Temperature: "));
@@ -193,6 +167,21 @@ void Flying() {
       Serial.print(F("°C "));
       Serial.print(hif);
       Serial.println(F("°F"));
+      // end of reading Humidity
+
+    // start of reading Voltage
+   // Read the Analog Input
+   adc_value = analogRead(ANALOG_IN_PIN_VOLTAGE);
+   // Determine voltage at ADC input
+   adc_voltage  = (adc_value * ref_voltage) / 1024.0; 
+   // Calculate voltage at divider input
+   in_voltage = adc_voltage / (R2/(R1+R2)) ; 
+   // Print results to Serial Monitor to 2 decimal places
+  Serial.print("Input Voltage = ");
+  Serial.println(in_voltage);
+
+  //delay(500);
+
 
           if(readHydrogen){
             int hydrogen = analogRead(analogReadHydrogen);  // reads the hydrogen from the sensor
@@ -202,15 +191,13 @@ void Flying() {
           Serial.println();                          //
           Serial.println(millis());  
    
-          int voltage = analogRead(analogReadVoltage);        // read the voltage sensor value
-          // print the voltage to the logit file
-          
+        
       
           int current = analogRead(analogReadCurrent);      // read the current sensor value 
           // print the current to the logit file
           
 
-        }
+        } // end of event
          //  this test if eventTime0 time has come
     //  See above for eventTime0 settings between this event
     //
@@ -218,11 +205,6 @@ void Flying() {
       event0timer = millis();                    //yes is time now reset event0timer
       Serial.println();                          //
       Serial.println(millis());                  //
-      //
-      //read the value at analog input
-      value = analogRead(analogInput);
-      vout = (value * 5.0) / 1024.0; // see text
-      vin = vout / (R2/(R1+R2));
       //***** Build the User Text buffer here (for writing the 
       //***** additions to the user text buffer can be added anytime between photo events
       //
