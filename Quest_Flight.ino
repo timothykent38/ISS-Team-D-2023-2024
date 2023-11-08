@@ -11,7 +11,7 @@
 
 #include "Quest_Flight.h"
 #include "Quest_CLI.h"
-  #define ANALOG_IN_PIN_VOLTAGE A0
+
     
     #define DHTPIN 2     // Digital pin connected to the DHT sensor
     // Feather HUZZAH ESP8266 note: use pins 3, 4, 5, 12, 13 or 14 --
@@ -57,24 +57,15 @@ void Flying() {
   //
   // set up for reading voltage
  
-  // Floats for ADC voltage & Input voltage
-  float adc_voltage = 0.0;
-  float in_voltage = 0.0;
-   float R1 = 30000.0;
-   float R2 = 7500.0; 
-// Float for Reference Voltage
-float ref_voltage = 5.0;
-// Integer for ADC value
-int adc_value = 0;
-
+int voltageAnalogInput = A1;
+float voltage = 0.0;
+int rawVoltage = 0;
+pinMode(voltageAnalogInput, INPUT);
   float vout = 0.0; // these 2 values seem to be for logit file??????????
   float vin = 0.0;
 
 
-  Serial.print("DC VOLTMETER"); 
-  int analogReadVoltage = A2;
-  pinMode(analogReadVoltage, INPUT);
-  int analogReadCurrent = A3;
+
   pinMode(analogReadCurrent, INPUT);
   int analogReadHydrogen = A4;
   pinMode(analogReadHydrogen, INPUT);
@@ -171,14 +162,11 @@ int adc_value = 0;
 
     // start of reading Voltage
    // Read the Analog Input
-   adc_value = analogRead(ANALOG_IN_PIN_VOLTAGE);
-   // Determine voltage at ADC input
-   adc_voltage  = (adc_value * ref_voltage) / 1024.0; 
-   // Calculate voltage at divider input
-   in_voltage = adc_voltage / (R2/(R1+R2)) ; 
-   // Print results to Serial Monitor to 2 decimal places
-  Serial.print("Input Voltage = ");
-  Serial.println(in_voltage);
+       
+  rawVoltage = analogRead(voltageAnalogInput);
+  voltage =(value * 5.0) / 1550.0; // see text
+  Serial.print("INPUT V= ");
+  Serial.println(voltage);
 
   //delay(500);
 
