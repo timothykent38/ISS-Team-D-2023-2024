@@ -7,16 +7,14 @@
 
 */
     
-    #include "DHT.h"
+#include "DHT.h"
 
 #include "Quest_Flight.h"
 #include "Quest_CLI.h"
 
     
-    #define DHTPIN 2     // Digital pin connected to the DHT sensor
-    // Feather HUZZAH ESP8266 note: use pins 3, 4, 5, 12, 13 or 14 --
-    //#define DHTTYPE DHT11   // DHT 11
-    #define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
+ #define DHTPIN 2     // Digital pin connected to the DHT sensor
+#define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
    DHT dht(DHTPIN, DHTTYPE);
 //////////////////////////////////////////////////////////////////////////
 //    this defines the timers used to control flight operations
@@ -57,26 +55,15 @@ void Flying() {
   //
   // set up for reading voltage
  
-int voltageAnalogInput = A1;
+int voltageAnalogInput = A1; // these 4 lines are for reading voltage
 float voltage = 0.0;
 int rawVoltage = 0;
 pinMode(voltageAnalogInput, INPUT);
+   
   float vout = 0.0; // these 2 values seem to be for logit file??????????
   float vin = 0.0;
 
-
-
-  pinMode(analogReadCurrent, INPUT);
-  int analogReadHydrogen = A4;
-  pinMode(analogReadHydrogen, INPUT);
-  int digitalPowerOn = 5;
-  pinMode(digitalPowerOn, OUTPUT);
-  int digitalPumpOn = 6;
-  pinMode(digitalPumpOn, OUTPUT);
-  int digitalMotorOn = 7;
-  pinMode(digitalMotorOn, OUTPUT);
-  bool readHydrogen;  // do we read the hydrogen
-  //******************************************************************
+   //******************************************************************
 
   //------------ flying -----------------------
 
@@ -85,27 +72,10 @@ pinMode(voltageAnalogInput, INPUT);
 
   missionMillis = millis();     //Set mission clock millis, you just entered flight conditions
   // ***************** HERE IS WHERE THE EXPERIMENT CODE STARTS *************************************************
-      // wait 24 hours (this should be done automatically)
-      // turn on voltage 
-      digitalWrite(digitalPowerOn, HIGH);
-      //***** reading the voltage and current happens each minute throughout the entire experiment
-    //  read oxygen(or hydrogen) and print that to the logit file
-      readHydrogen = true;  // there is probably a better way to control when we do or do not read data from the hydrogen sensor, the current way probably does not work at all 
-    //  turn on air pump
-        digitalWrite(digitalPumpOn, HIGH);
-    //  read voltage and hydrogen (this happens throughout the experiment every minute)
-    //  turn off votage and air pump
-        digitalWrite(digitalPowerOn, LOW);
-        digitalWrite(digitalPumpOn, LOW);
-    //  reverse polaroty (i have no idea how to do this)
-    //  turn on votage measure current and voltage (measuring continues to happen throughout experiment
-          digitalWrite(digitalPowerOn, HIGH);
-    //  turrn off voltage
-        digitalWrite(digitalPowerOn, LOW);
-    //  turn on motor
-    //  turn off motor
-    //  if 30 days have passed end else go back to turn on power (we may want to put all this code inside a 1 day event so it runs every day and have a variable that counts the number of days that have passed)
-      //
+      
+   // create a day event timer that we can use to run the experiemnt
+   // turn power on to the cell over the odd numbered days
+   // turn power off to the cell over even numbered daysd
       //
       /////////////////////////////////////////////////////
       //----- Here to start a flight from a reset ---------
@@ -134,8 +104,10 @@ pinMode(voltageAnalogInput, INPUT);
        //********* event for printing the data from voltage and current 
     
     if ((millis() - eventDataTimer) > eventReadData) {
-              // ******* reading temp info
-    
+              // ******* reading temp info\
+
+       // I dont know how to turn this sensor off and on
+       // turn on here
       float t = dht.readTemperature();
       float f = dht.readTemperature(true);
       // Check if any reads failed and exit early (to try again).
@@ -158,33 +130,22 @@ pinMode(voltageAnalogInput, INPUT);
       Serial.print(F("°C "));
       Serial.print(hif);
       Serial.println(F("°F"));
+      delay(100);
+       // turn off sensor
       // end of reading Humidity
 
     // start of reading Voltage
    // Read the Analog Input
-       
+   // no longer a sensor for this, we are just plugging it directly into sensor
   rawVoltage = analogRead(voltageAnalogInput);
   voltage =(value * 5.0) / 1550.0; // see text
   Serial.print("INPUT V= ");
   Serial.println(voltage);
-
+   // I dont think we need to delay here becuase there is no sensor to turn off
   //delay(500);
-
-
-          if(readHydrogen){
-            int hydrogen = analogRead(analogReadHydrogen);  // reads the hydrogen from the sensor
-            // print hydrogen to the logit file
-          }
           eventDataTimer = millis();                    //yes is time now reset eventDatatTimer
           Serial.println();                          //
           Serial.println(millis());  
-   
-        
-      
-          int current = analogRead(analogReadCurrent);      // read the current sensor value 
-          // print the current to the logit file
-          
-
         } // end of event
          //  this test if eventTime0 time has come
     //  See above for eventTime0 settings between this event
@@ -222,21 +183,21 @@ pinMode(voltageAnalogInput, INPUT);
 
 
 
-      void textFile_string(String data) {                           //store string
-        Logfile = SD.open("data.txt", FILE_WRITE);  //open syslog file
-        if (Logfile) {                                //can open the file
-          Logfile.println();                          //add a carrage return/line feed
-          delayMicroseconds(100);                     //wait 100 microsec
-          for (uint8_t x = 0x20; x < 128; x++) {      //print a string to log file
-            Logfile.write(x);                         //write one charator at a time
-          }                                           //close string
-          Logfile.write(data);
-        }                                             //close the open log file
-        else {                                        //or else
-          Serial.println("\r\nlogit error");          //error can not open log file
-        }                                            //close error else
-        Logfile.close();                             //close the log file
-      }
+      // void textFile_string(String data) {                           //store string
+      //   Logfile = SD.open("data.txt", FILE_WRITE);  //open syslog file
+      //   if (Logfile) {                                //can open the file
+      //     Logfile.println();                          //add a carrage return/line feed
+      //     delayMicroseconds(100);                     //wait 100 microsec
+      //     for (uint8_t x = 0x20; x < 128; x++) {      //print a string to log file
+      //       Logfile.write(x);                         //write one charator at a time
+      //     }                                           //close string
+      //     Logfile.write(data);
+      //   }                                             //close the open log file
+      //   else {                                        //or else
+      //     Serial.println("\r\nlogit error");          //error can not open log file
+      //   }                                            //close error else
+      //   Logfile.close();                             //close the log file
+      // }
 
       textFile_string("hello");
       // Call the freeMemory function and print the result
