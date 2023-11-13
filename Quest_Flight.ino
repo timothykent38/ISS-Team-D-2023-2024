@@ -228,6 +228,7 @@ pinMode(pumpWater, OUTPUT);
 
      
      // check if 24 hours have passed
+         // we probably could just delete everything below this
       // TODO write this better, do we even need to do anything here or will it just wait out naturally
      if (millis() - one_day> event3Timer){
         delay(one_day); // end event or delay 24 hours
@@ -251,6 +252,7 @@ pinMode(pumpWater, OUTPUT);
             int endTenSec = millis() + ten_sec;
             if (i == 0) {
                digitalWrite(cellVoltage, HIGH);
+               // I dont know who to turn hydrogen or current sensor off and on
                // TODO turn current sensor on here
                // TODo turn off hydrogen sensor
                // voltage sensor is always on
@@ -276,6 +278,7 @@ pinMode(pumpWater, OUTPUT);
                  Serial.print("Current:       "); Serial.print(current_mA / 1.16); Serial.println(" mA");
                  Serial.print("Power:         "); Serial.print(power_mW); Serial.println(" mW");
                  Serial.println("");
+                  ///// END OF CURRENT
 
 
                   float t = dht.readTemperature(); // for reading the temperature data
@@ -300,12 +303,14 @@ pinMode(pumpWater, OUTPUT);
                   Serial.print(F("°C "));
                   Serial.print(hif);
                   Serial.println(F("°F"));
+               // END OF TEMPERATURE
 
 
                rawVoltage = analogRead(voltageAnalogInput); // for reading the voltage
                voltage =(value * 5.0) / 1550.0; // see text
                Serial.print("INPUT V= ");
                Serial.println(voltage);
+               // END OF VOLTAGE
             } 
                if (i == 6){ // after 6 10s intervals of reading current, voltage and temp
                   dht.end(); // turn the temp sensor off
@@ -313,6 +318,7 @@ pinMode(pumpWater, OUTPUT);
                   // no need to turn the voltage sensor off
                   digitalWrite(cellVoltage, LOW); // stop sending power to the cell
                   // TODO turn on the hydrogen sensor and read its data
+                  // START OF READING HYDROGEN
                    int val; // this should read the value
                     val=analogRead(hydrogenPin);//Read Gas value from analog 0
                     Serial.println(val,DEC);//Print the value to serial port
@@ -321,6 +327,7 @@ pinMode(pumpWater, OUTPUT);
                     float H2OConcentration = pow(10, (log(Rs / H2Curve[0]) - H2Curve[1]) / H2Curve[2]);
                     Serial.print(H2OConcentration);
                     Serial.println(" ppm");
+                  // END OF READING HYDROGEN
                }
          } // end for loop
           delay (endTenSec - millis()); // delay remaining 10 secs
@@ -336,7 +343,7 @@ pinMode(pumpWater, OUTPUT);
               // ******* reading temp info\
 
        // I dont know how to turn this sensor off and on
-       // turn on here
+       // turn on hydrogen here
       float t = dht.readTemperature();
       float f = dht.readTemperature(true);
       // Check if any reads failed and exit early (to try again).
