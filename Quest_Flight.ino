@@ -45,6 +45,11 @@ DHT dht(DHTPIN, DHTTYPE);
 #define eventTime3 two_day  // this event happens every 2 days for electrolitic phase
 #define eventTime4 two_day  // this event happens every 2 days for galvanic phase
 #define eventReadData one_min      // this event DOES NOTING USEFUL reads data (current and voltage) and prints it to the logit file (hopefully)
+define eventTime0  one_sec*30  
+   define eventTime5  ten_sec;
+define eventTime6  ten_sec;
+define eventTime7  ten_sec;
+define eventTime8  ten_sec;
 ///////////////////////////////////////////////////////////////////////////
 /**
    @brief Flying function is used to capture all logic of an experiment during flight.
@@ -64,6 +69,16 @@ void Flying() {
   uint32_t sec60Timer = millis();               //set minute timer
   uint32_t event3timer = millis();  // set event 3 timer (for electrolic cell)
   uint32_t event4timer = millis();  // set event 4 timer (for galvanic cell)
+   uint32_t event5timer = millis();  // electro read temp
+   uint32_t event6timer = millis();  // electro read hydrogen
+   uint32_t event7timer = millis();  // galvan read temp
+   uint32_t event8timer = millis();  // galvan read hydrogen
+   
+
+   //event management
+   int day = 0; // the way days are cycled needs to be updated and thought out better
+   int count = 0; // for the 6 10s cycles
+   bool pumpOn = false; // is the water pump pumping water?
 
   //add timer for collectdata event
  // uint32_t eventDataTimer = millis();    // set data collection timer (doesnt work)
@@ -131,15 +146,183 @@ pinMode(pumpWater, OUTPUT);
         //-------------------------------------------------------------------
        //********* event for printing the data from voltage and current 
          // event if day == one and count < 6 read data
-         // event if day == one and count == 6 read hydrogen and shut off cell
+         if((millis() - event5Timer > eventTime5 && day % 2 == 1 && count < 6 &&!pumpON){
+            event5Timer = millis();
+            digitalWrite(cellVoltage, HIGH); // turns power on to the cell
+            // TODO turn current sensor on here
+               // TODo turn off hydrogen sensor
+               // voltage sensor is always on
+               dht.begin(); // turn the temperature sensor on
+            // TODO turn current sensor on here
+               // TODo turn off hydrogen sensor
+               // voltage sensor is always on
+               dht.begin(); // turn the temperature sensor on
+               float shuntvoltage = 0; // for reading the current data
+                 float busvoltage = 0;
+                 float current_mA = 0;
+                 float loadvoltage = 0;
+                 float power_mW = 0;
+               
+                 shuntvoltage = ina219.getShuntVoltage_mV();
+                 busvoltage = ina219.getBusVoltage_V();
+                 current_mA = ina219.getCurrent_mA();
+                 power_mW = ina219.getPower_mW();
+                 loadvoltage = busvoltage + (shuntvoltage / 1000);
+                 
+                 Serial.print("Bus Voltage:   "); Serial.print(busvoltage); Serial.println(" V");
+                 Serial.print("Shunt Voltage: "); Serial.print(shuntvoltage); Serial.println(" mV");
+                 Serial.print("Load Voltage:  "); Serial.print(loadvoltage); Serial.println(" V");
+                 Serial.print("Current:       "); Serial.print(current_mA / 1.16); Serial.println(" mA");
+                 Serial.print("Power:         "); Serial.print(power_mW); Serial.println(" mW");
+                 Serial.println("");
+
+
+                  float t = dht.readTemperature(); // for reading the temperature data
+                  float f = dht.readTemperature(true);
+                  // Check if any reads failed and exit early (to try again).
+                  if (isnan(h) || isnan(t) || isnan(f)) {
+                    Serial.println(F("Failed to read from DHT sensor!"));
+                    return;
+                  }
+                  // Compute heat index in Fahrenheit (the default)
+                  float hif = dht.computeHeatIndex(f, h);
+                  // Compute heat index in Celsius (isFahreheit = false)
+                  float hic = dht.computeHeatIndex(t, h, false);
+                  Serial.print(F("Humidity: "));
+                  Serial.print(h);
+                  Serial.print(F("%  Temperature: "));
+                  Serial.print(t);
+                  Serial.print(F("°C "));
+                  Serial.print(f);
+                  Serial.print(F("°F  Heat index: "));
+                  Serial.print(hic);
+                  Serial.print(F("°C "));
+                  Serial.print(hif);
+                  Serial.println(F("°F"));
+
+
+               rawVoltage = analogRead(voltageAnalogInput); // for reading the voltage
+               voltage =(value * 5.0) / 1550.0; // see text
+               Serial.print("INPUT V= ");
+               Serial.println(voltage);
+            count ++;
+         } 
+          // event if day == one and count == 6 read hydrogen and shut off cell
+           if((millis() - event5Timer > eventTime5 && day % 2 == 1 && count == 6 && !pumpOn){
+              digitalWrite(cellVoltage, LOW); // turns power off to the cell
+              event5Timer = millis();
+                dht.end(); // turn the temp sensor off
+                  // TODO turn the current sensor off
+                  // no need to turn the voltage sensor off
+                  digitalWrite(cellVoltage, LOW); // stop sending power to the cell
+                  // TODO turn on the hydrogen sensor and read its data
+                   int val; // this should read the value
+                    val=analogRead(hydrogenPin);//Read Gas value from analog 0
+                    Serial.println(val,DEC);//Print the value to serial port
+                    // for calibrating the senor (do we still need this?)
+                    float Rs = R0_CLEAN_AIR_FACTOR * val;
+                    float H2OConcentration = pow(10, (log(Rs / H2Curve[0]) - H2Curve[1]) / H2Curve[2]);
+                    Serial.print(H2OConcentration);
+                    Serial.println(" ppm");
+                 count ++;            
+         } 
+        
          // event if day == two and count < 6 read temp/current/voltage
+         if((millis() - event5Timer > eventTime5 && day % 2 == 0 && count < 6){
+            event5Timer = millis();
+            digitalWrite(cellVoltage, LOW); // turns power off to the cell
+            // TODO turn current sensor on here
+               // TODo turn off hydrogen sensor
+               // voltage sensor is always on
+               dht.begin(); // turn the temperature sensor on
+            // TODO turn current sensor on here
+               // TODo turn off hydrogen sensor
+               // voltage sensor is always on
+               dht.begin(); // turn the temperature sensor on
+               float shuntvoltage = 0; // for reading the current data
+                 float busvoltage = 0;
+                 float current_mA = 0;
+                 float loadvoltage = 0;
+                 float power_mW = 0;
+               
+                 shuntvoltage = ina219.getShuntVoltage_mV();
+                 busvoltage = ina219.getBusVoltage_V();
+                 current_mA = ina219.getCurrent_mA();
+                 power_mW = ina219.getPower_mW();
+                 loadvoltage = busvoltage + (shuntvoltage / 1000);
+                 
+                 Serial.print("Bus Voltage:   "); Serial.print(busvoltage); Serial.println(" V");
+                 Serial.print("Shunt Voltage: "); Serial.print(shuntvoltage); Serial.println(" mV");
+                 Serial.print("Load Voltage:  "); Serial.print(loadvoltage); Serial.println(" V");
+                 Serial.print("Current:       "); Serial.print(current_mA / 1.16); Serial.println(" mA");
+                 Serial.print("Power:         "); Serial.print(power_mW); Serial.println(" mW");
+                 Serial.println("");
+
+
+                  float t = dht.readTemperature(); // for reading the temperature data
+                  float f = dht.readTemperature(true);
+                  // Check if any reads failed and exit early (to try again).
+                  if (isnan(h) || isnan(t) || isnan(f)) {
+                    Serial.println(F("Failed to read from DHT sensor!"));
+                    return;
+                  }
+                  // Compute heat index in Fahrenheit (the default)
+                  float hif = dht.computeHeatIndex(f, h);
+                  // Compute heat index in Celsius (isFahreheit = false)
+                  float hic = dht.computeHeatIndex(t, h, false);
+                  Serial.print(F("Humidity: "));
+                  Serial.print(h);
+                  Serial.print(F("%  Temperature: "));
+                  Serial.print(t);
+                  Serial.print(F("°C "));
+                  Serial.print(f);
+                  Serial.print(F("°F  Heat index: "));
+                  Serial.print(hic);
+                  Serial.print(F("°C "));
+                  Serial.print(hif);
+                  Serial.println(F("°F"));
+
+
+               rawVoltage = analogRead(voltageAnalogInput); // for reading the voltage
+               voltage =(value * 5.0) / 1550.0; // see text
+               Serial.print("INPUT V= ");
+               Serial.println(voltage);
+            count ++;
+         } 
          // event if day == two and count == 6 read hydrogen
+                 if((millis() - event5Timer > eventTime5 && day % 2 == 0 && count == 6){
+              digitalWrite(cellVoltage, LOW); // turns power off to the cell
+              event5Timer = millis();
+                dht.end(); // turn the temp sensor off
+                  // TODO turn the current sensor off
+                  // no need to turn the voltage sensor off
+                  digitalWrite(cellVoltage, LOW); // stop sending power to the cell
+                  // TODO turn on the hydrogen sensor and read its data
+                   int val; // this should read the value
+                    val=analogRead(hydrogenPin);//Read Gas value from analog 0
+                    Serial.println(val,DEC);//Print the value to serial port
+                    // for calibrating the senor (do we still need this?)
+                    float Rs = R0_CLEAN_AIR_FACTOR * val;
+                    float H2OConcentration = pow(10, (log(Rs / H2Curve[0]) - H2Curve[1]) / H2Curve[2]);
+                    Serial.print(H2OConcentration);
+                    Serial.println(" ppm");
+                 count ++;            
+         } 
+              
          // event if day == one30min wait do nothing until the 30 mins are up to  pump the water
 // new event for electrolitic 
   if ((millis() - event3Timer) > eventTime3) {
       event3Timer = millis();                    //yes is time now reset event0timer
       Serial.println();                          //
-      Serial.println(millis());  
+      Serial.println(millis())
+     pumpOn = true;
+     delay(thirty_min);
+     pumpOn = false;
+     delay(one_day-thirty_min);
+     day++
+     ;  
+
+     // EVERYTHING BELOW IS NOW USELESS
       digitalWrite(cellVoltage, HIGH); // turns power on to the cell
       // TODO pump water
      digitalWrite(pumpWater, HIGH);
@@ -248,6 +431,7 @@ pinMode(pumpWater, OUTPUT);
       Serial.println();                          //
       Serial.println(millis());  
      delay(one_day); // wait for a day while the electrolic phase is going
+     
       digitalWrite(cellVoltage, LOW); // turns power off to the cell
      
      
