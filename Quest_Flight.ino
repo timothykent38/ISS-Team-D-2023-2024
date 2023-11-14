@@ -130,6 +130,11 @@ pinMode(pumpWater, OUTPUT);
         }                                 //end abort check
         //-------------------------------------------------------------------
        //********* event for printing the data from voltage and current 
+         // event if day == one and count < 6 read data
+         // event if day == one and count == 6 read hydrogen and shut off cell
+         // event if day == two and count < 6 read temp/current/voltage
+         // event if day == two and count == 6 read hydrogen
+         // event if day == one30min wait do nothing until the 30 mins are up to  pump the water
 // new event for electrolitic 
   if ((millis() - event3Timer) > eventTime3) {
       event3Timer = millis();                    //yes is time now reset event0timer
@@ -143,6 +148,7 @@ pinMode(pumpWater, OUTPUT);
      
       while (millis() < event3Timer + one_day - thirty_min){ // while the first day is not over
          // every 10 seconds read voltage, current and temperature
+         
          for(int i = 0; i < 7; i++){
            if (millis() < event3Timer + one_day) break;
             int endTenSec = millis() + ten_sec;
@@ -236,7 +242,7 @@ pinMode(pumpWater, OUTPUT);
   }  
 
 
-   // NEW EVENT FOR GALVANIC PHASE
+   // NEW EVENT FOR GALVANIC PHASE all the event 3 needs to be event 4
   if ((millis() - event4Timer) > eventTime4) {
       event4Timer = millis();                    //yes is time now reset event0timer
       Serial.println();                          //
