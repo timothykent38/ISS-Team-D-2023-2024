@@ -6,45 +6,32 @@
    @date 2023-07-15
 
 */
-#include "DHT.h"
+    
+    #include "DHT.h"
+
 #include "Quest_Flight.h"
 #include "Quest_CLI.h"
 
-#include <Wire.h> // this and the next few lines are for the current sensor setup
+#include <Wire.h>
 #include <Adafruit_INA219.h>
+
 Adafruit_INA219 ina219;
-if (! ina219.begin()) {
-    Serial.println("Failed to find INA219 chip");
-    while (1) { delay(10); }
-  }
-  // To use a slightly lower 32V, 1A range (higher precision on amps):
-  //ina219.setCalibration_32V_1A();
-  // Or to use a lower 16V, 400mA range (higher precision on volts and amps):
-ina219.setCalibration_16V_400mA();
-
-int hydrogenPin = A7; // for reading hydrogen . Temporary pin valye
-float R0_CLEAN_AIR_FACTOR = 9.21;
-float H2Curve[3] = {2.3, 0.93, -1.44};
-
-#define DHTPIN 2     // Digital pin connected to the DHT sensor
-#define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
-DHT dht(DHTPIN, DHTTYPE);
+    
+    #define DHTPIN A3     // Digital pin connected to the DHT sensor
+    // Feather HUZZAH ESP8266 note: use pins 3, 4, 5, 12, 13 or 14 --
+    //#define DHTTYPE DHT11   // DHT 11
+    #define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
+   DHT dht(DHTPIN, DHTTYPE);
 //////////////////////////////////////////////////////////////////////////
 //    this defines the timers used to control flight operations
 //////////////////////////////////////////////////////////////////////////
 #define one_sec   1000                         //one second = 1000 millis
 #define one_min   60*one_sec                   // one minute of time
 #define one_hour  60*one_min                   // one hour of time
-#define two_day   48*one_hour  // 2 days of time
-#define one_day   24*one_hour // 1 day of time
-#define ten_sec   10*one_sec // ten seconds of time
-#define thirty_min   30*one_min // thirty minutes of time
 //
 #define eventTime0  one_sec*30                  //this event every 3 min
 #define eventTime1  one_min*60                  //this event every 60 min
-#define eventTime5  one_sec*10
-#define eventTime6  one_day
-
+#define eventReadData one_min      // this event reads data (current and voltage) and prints it to the logit file (hopefully)
 ///////////////////////////////////////////////////////////////////////////
 /**
    @brief Flying function is used to capture all logic of an experiment during flight.
@@ -62,17 +49,10 @@ void Flying() {
   //
   uint32_t one_secTimer = millis();             //set happens every second
   uint32_t sec60Timer = millis();               //set minute timer
-   uint32_t event5timer = millis();  // electro read temp
-   uint32_t event6timer = millis();  // electro read hydrogen
-
-   
-
-   //event management
-   int day = 0; // the way days are cycled needs to be updated and thought out better
 
   //add timer for collectdata event
- // uint32_t eventDataTimer = millis();    // set data collection timer (doesnt work)
- // dht.begin(); // maybe get rid of this
+  uint32_t eventDataTimer = millis();    // set data collection timer
+  dht.begin();
   //*****************************************************************
   //   Here to set up flight conditions i/o pins, atod, and other special condition
   //   of your program
@@ -81,22 +61,40 @@ void Flying() {
   //
   // set up for reading voltage
  
-int voltageAnalogInput = A1; // these 4 lines are for reading voltage
+int voltageAnalogInput = A1;
 float voltage = 0.0;
 int rawVoltage = 0;
 pinMode(voltageAnalogInput, INPUT);
-
-int cellVoltage = A4; // temporary place holder pin for sending voltage to the cell
-pinMode(cellVoltage, OUTPUT);
-
-int pumpWater = A5; // temporary place holder pin for the water pump
-pinMode(pumpWater, OUTPUT);
-
-   
   float vout = 0.0; // these 2 values seem to be for logit file??????????
   float vin = 0.0;
 
-   //******************************************************************
+//set up for current sensor
+  ina219.setCalibration_16V_400mA();
+
+  Serial.println("Measuring voltage and current with INA219 ...");
+
+ // pinMode(analogReadCurrent, INPUT);
+  int analogReadHydrogen = A0;
+  pinMode(analogReadHydrogen, INPUT);
+  int digitalPowerOn = 5;
+  pinMode(digitalPowerOn, OUTPUT);
+  int digitalPumpOn = 6;
+  pinMode(digitalPumpOn, OUTPUT);
+  int digitalMotorOn = 7;
+  pinMode(digitalMotorOn, OUTPUT);
+  bool readHydrogen;  // do we read the hydrogen
+  pinMode(3, OUTPUT);
+  pinMode(4, OUTPUT);
+  pinMode(9, OUTPUT);
+  digitalWrite(3, HIGH);
+  digitalWrite(4, LOW);
+  digitalWrite(9, LOW);
+  if (! ina219.begin()) {
+    Serial.println("Failed to find INA219 chip");
+    while (1) { delay(10); }
+  }
+  
+  //******************************************************************
 
   //------------ flying -----------------------
 
@@ -105,10 +103,27 @@ pinMode(pumpWater, OUTPUT);
 
   missionMillis = millis();     //Set mission clock millis, you just entered flight conditions
   // ***************** HERE IS WHERE THE EXPERIMENT CODE STARTS *************************************************
-      
-   // create a day event timer that we can use to run the experiemnt
-   // turn power on to the cell over the odd numbered days
-   // turn power off to the cell over even numbered daysd
+      // wait 24 hours (this should be done automatically)
+      // turn on voltage 
+      digitalWrite(digitalPowerOn, HIGH);
+      //***** reading the voltage and current happens each minute throughout the entire experiment
+    //  read oxygen(or hydrogen) and print that to the logit file
+      readHydrogen = true;  // there is probably a better way to control when we do or do not read data from the hydrogen sensor, the current way probably does not work at all 
+    //  turn on air pump
+        digitalWrite(digitalPumpOn, HIGH);
+    //  read voltage and hydrogen (this happens throughout the experiment every minute)
+    //  turn off votage and air pump
+        digitalWrite(digitalPowerOn, LOW);
+        digitalWrite(digitalPumpOn, LOW);
+    //  reverse polaroty (i have no idea how to do this)
+    //  turn on votage measure current and voltage (measuring continues to happen throughout experiment
+          digitalWrite(digitalPowerOn, HIGH);
+    //  turrn off voltage
+        digitalWrite(digitalPowerOn, LOW);
+    //  turn on motor
+    //  turn off motor
+    //  if 30 days have passed end else go back to turn on power (we may want to put all this code inside a 1 day event so it runs every day and have a variable that counts the number of days that have passed)
+      //
       //
       /////////////////////////////////////////////////////
       //----- Here to start a flight from a reset ---------
@@ -135,102 +150,122 @@ pinMode(pumpWater, OUTPUT);
         }                                 //end abort check
         //-------------------------------------------------------------------
        //********* event for printing the data from voltage and current 
-         /* 
-         power cell off every 10 seconds read current delay half second read voltage delay half second read hydrogen delay read humidity.
-         if electrolitic phase day and humidity is less than x < then pump the water delay 1 second
-         rest of event power cell on or power fell off
-         
+     // end of event
+         //  this test if eventTime0 time has come
+    //  See above for eventTime0 settings between this event
+    //
+    if ((millis() - event0timer) > eventTime0) {
+      event0timer = millis();                    //yes is time now reset event0timer
+      Serial.println();                          //
+      Serial.println(millis());                  //
+      //***** Build the User Text buffer here (for writing the 
+      //***** additions to the user text buffer can be added anytime between photo events
+      //
+      //current sensor
+      digitalWrite(4, HIGH);
+      digitalWrite(9, HIGH);
+      digitalWrite(3, LOW);
+      float shuntvoltage = 0;
+      float busvoltage = 0;
+      float current_mA = 0;
+      float loadvoltage = 0;
+      float power_mW = 0;
+    
+      shuntvoltage = ina219.getShuntVoltage_mV();
+      busvoltage = ina219.getBusVoltage_V();
+      current_mA = ina219.getCurrent_mA();
+      power_mW = ina219.getPower_mW();
+      loadvoltage = busvoltage + (shuntvoltage / 1000);
+      
+      Serial.print("Bus Voltage:   "); Serial.print(busvoltage); Serial.println(" V");
+      Serial.print("Shunt Voltage: "); Serial.print(shuntvoltage); Serial.println(" mV");
+      Serial.print("Load Voltage:  "); Serial.print(loadvoltage); Serial.println(" V");
+      Serial.print("Current:       "); Serial.print(current_mA / 1.16); Serial.println(" mA");
+      Serial.print("Power:         "); Serial.print(power_mW); Serial.println(" mW");
+      Serial.println("");
+    
 
-         */
-      if(millis() - event6Timer > eventTime6){
-            event6Timer = millis();
-         day++;
-      }
-         
-      if(millis() - event5Timer > eventTime5){
-         event5Timer = millis();
-         // turn on the current sensor DO pins
-           float shuntvoltage = 0; // for reading the current data
-           float busvoltage = 0;
-           float current_mA = 0;
-           float loadvoltage = 0;
-           float power_mW = 0;
-         
-           shuntvoltage = ina219.getShuntVoltage_mV();
-           busvoltage = ina219.getBusVoltage_V();
-           current_mA = ina219.getCurrent_mA();
-           power_mW = ina219.getPower_mW();
-           loadvoltage = busvoltage + (shuntvoltage / 1000);
-         delay(500); // delay half a second
-         // turn off the current sensor DO pins
-            rawVoltage = analogRead(voltageAnalogInput); // for reading the voltage
-            voltage =(value * 5.0) / 1550.0; // see text
-            Serial.print("INPUT V= ");
-            Serial.println(voltage);
-          delay(500);
-         // turn on the hydrogen DO pins
-             int val; // this should read the value
-              val=analogRead(hydrogenPin);//Read Gas value from analog 0
-              Serial.println(val,DEC);//Print the value to serial port
-                 // for calibrating the senor (do we still need this?)
-              float Rs = R0_CLEAN_AIR_FACTOR * val;
-              float H2OConcentration = pow(10, (log(Rs / H2Curve[0]) - H2Curve[1]) / H2Curve[2]);
-              Serial.print(H2OConcentration);
-              Serial.println(" ppm");
-         delay(500);
-         // turn on humindity DO pins
-         
-               float t = dht.readTemperature(); // for reading the temperature data
-               float f = dht.readTemperature(true);
-               // Check if any reads failed and exit early (to try again).
-               if (isnan(h) || isnan(t) || isnan(f)) {
-                 Serial.println(F("Failed to read from DHT sensor!"));
-                 return;
-               }
-               // Compute heat index in Fahrenheit (the default)
-               float hif = dht.computeHeatIndex(f, h);
-               // Compute heat index in Celsius (isFahreheit = false)
-               float hic = dht.computeHeatIndex(t, h, false);
-               Serial.print(F("Humidity: "));
-               Serial.print(h);
-               Serial.print(F("%  Temperature: "));
-               Serial.print(t);
-               Serial.print(F("°C "));
-               Serial.print(f);
-               Serial.print(F("°F  Heat index: "));
-               Serial.print(hic);
-               Serial.print(F("°C "));
-               Serial.print(hif);
-               Serial.println(F("°F"));
-               if(h < 100 && day%2 == 0){
-                  // turn on the pump
-                  delay(500); // maybe should try and delay longer for this
-               }
-               if(day%2 == 0){
-                  // turn on DO pins for cell)
-               } else {
-                  // turn off DO pins for cell
-               }
-         
-      }
-     
-      // void textFile_string(String data) {                           //store string
-      //   Logfile = SD.open("data.txt", FILE_WRITE);  //open syslog file
-      //   if (Logfile) {                                //can open the file
-      //     Logfile.println();                          //add a carrage return/line feed
-      //     delayMicroseconds(100);                     //wait 100 microsec
-      //     for (uint8_t x = 0x20; x < 128; x++) {      //print a string to log file
-      //       Logfile.write(x);                         //write one charator at a time
-      //     }                                           //close string
-      //     Logfile.write(data);
-      //   }                                             //close the open log file
-      //   else {                                        //or else
-      //     Serial.println("\r\nlogit error");          //error can not open log file
-      //   }                                            //close error else
-      //   Logfile.close();                             //close the log file
-      // }
 
-      textFile_string("hello");
+      //DHT sensor 
+      digitalWrite(3, HIGH);
+      digitalWrite(4, LOW);
+      digitalWrite(9, LOW);
+      float h = dht.readHumidity(); 
+
+      digitalWrite(4, HIGH);
+      digitalWrite(3, LOW);
+      digitalWrite(9, LOW);
+      int hydrogen = analogRead(analogReadHydrogen);  // reads the hydrogen from the sensor
+      Serial.println();
+      Serial.print(hydrogen);
+      Serial.println(" ppm");
+
+      digitalWrite(9, HIGH);
+      digitalWrite(4, LOW);
+      digitalWrite(3, LOW);
+      delay(2000);
+      digitalWrite(9, LOW);
+
+      //flipped a coin to decide for loop :))))
+      while (h < 100) {
+        digitalWrite(3, HIGH);
+        digitalWrite(4, HIGH);
+        digitalWrite(9, HIGH);
+        delay(500);
+        digitalWrite(3, HIGH);
+        digitalWrite(4, LOW);
+        digitalWrite(9, LOW);
+        h = dht.readHumidity();
+      }
+      
+      eventDataTimer = millis();                    //yes is time now reset eventDatatTimer
+      Serial.println();                          //
+      Serial.println(millis());
+      // print the current to the logit file
+      
+      strcat(user_text_buf0, ("User Buffer space here, millis = "));    //put this in user buffer
+      itoa(millis(), text_buf, 10);                                     //put millis time in user buffer (itoa = int to ascii, first parameter is for the number to add, text_buf is the name of the variable it is stored in and the 10 is the base of the number of the first parameter)
+      strcat(user_text_buf0, (text_buf));               //append the just created text_buf to user buffer
+      text_buf[0] = '\0';
+      strcat(user_text_buf0, ("INPUT V+ "));
+      itoa(vin, text_buf, 10);
+      strcat(user_text_buf0, (text_buf));
+      //copy the logit sructure in the cli
+      //  Take a photo using the serial c329 camera and place file name in Queue
+      //
+//      cmd_takeSphoto();                          //Take photo and send it
+//      delay(100);
+//
+//      void logit(uint8_t  x) {
+//        Logfile = SD.open("syslog.txt", FILE_WRITE);  //open log file ?
+//        if (Logfile) {                                //with logfile is open
+//          Logfile.write(x);                         //write the value to file
+//        }
+//        else {                                        //if not open say error
+//          Serial.println("\r\nlogit error");          //Terminal output here
+//        }
+//        Logfile.close();                              //close the log file
+//      }
+//
+//
+//
+//      void textFile_string(String data) {                           //store string
+//        Logfile = SD.open("data.txt", FILE_WRITE);  //open syslog file
+//        if (Logfile) {                                //can open the file
+//          Logfile.println();                          //add a carrage return/line feed
+//          delayMicroseconds(100);                     //wait 100 microsec
+//          for (uint8_t x = 0x20; x < 128; x++) {      //print a string to log file
+//            Logfile.write(x);                         //write one charator at a time
+//          }                                           //close string
+//          Logfile.write(data);
+//        }                                             //close the open log file
+//        else {                                        //or else
+//          Serial.println("\r\nlogit error");          //error can not open log file
+//        }                                            //close error else
+//        Logfile.close();                             //close the log file
+//      }
+//
+//      textFile_string("hello");
       // Call the freeMemory function and print the result
       // cmd_stackandheap();                          //enable to know stack and heap after photo time
       //
